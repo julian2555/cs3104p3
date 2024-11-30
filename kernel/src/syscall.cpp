@@ -16,7 +16,9 @@
 #include <stacsos/kernel/sched/process.h>
 #include <stacsos/kernel/sched/sleeper.h>
 #include <stacsos/kernel/sched/thread.h>
+#include <stacsos/directorydata.h>
 #include <stacsos/syscalls.h>
+#include <stacsos/memops.h>
 
 using namespace stacsos;
 using namespace stacsos::kernel;
@@ -40,6 +42,56 @@ static syscall_result do_open(process &owner, const char *path)
 
 	auto file_object = object_manager::get().create_file_object(owner, file);
 	return syscall_result { syscall_result_code::ok, file_object->id() };
+}
+
+// Open directory system call
+// todo: add to syscall_numbers and implement
+static syscall_result do_open_directory(process &owner, const char *path)
+{
+	auto this_fsnode = vfs::get().lookup(path);
+	if (!this_fsnode) {
+		return syscall_result { syscall_result_code::not_supported, 0 };
+	}
+
+	auto dir = new directory(*this_fsnode);
+	auto shared_p = new shared_ptr<fs::directory>(dir);
+	auto dir_object = object_manager::get().create_directory_object(owner, *shared_p);
+	return syscall_result { syscall_result_code::ok, dir_object->id() };
+}
+
+// Read directory system call
+static syscall_result do_read_directory(process &owner, u64 id, const void *dir_data)
+{
+	// Existance check
+	auto dir = object_manager::get().get_object(owner, id);
+	if (!dir) {
+		return syscall_result { syscall_result_code::not_found, 0 };
+	}
+
+	// pread dir into new fs_node
+	fs_node *this_node = nullptr;
+	dir->pread(&this_node, 0, sizeof(fs_node *));
+	if (!this_node) {
+		return syscall_result { syscall_result_code::not_found, 0 };
+	}
+
+	// Advance this node to the next child node
+	auto child = this_node->next_child();
+	if (child == nullptr) {
+		return syscall_result { syscall_result_code::not_found, 0 };
+	}
+
+	// Populate directory data with this node (child of previous node) data
+	directorydata *directory_data = (directorydata *)dir_data;
+	if (child->get_kind() == stacsos::kernel::fs::fs_node_kind::directory) {
+		directory_data->type = 1;
+	} else {
+		directory_data->type = 0;
+	}
+	directory_data->size = child->size();
+	memops::strncpy(directory_data->dir_name, child->name().c_str(), 255);
+
+	return syscall_result { syscall_result_code::ok, 1 };
 }
 
 static syscall_result operation_result_to_syscall_result(operation_result &&o)
@@ -70,6 +122,14 @@ extern "C" syscall_result handle_syscall(syscall_numbers index, u64 arg0, u64 ar
 
 	case syscall_numbers::open:
 		return do_open(current_process, (const char *)arg0);
+
+	case syscall_numbers::open_directory: {
+		return do_open_directory(current_process, (const char *)arg0);
+	}
+
+	case syscall_numbers::read_directory: {
+		return do_read_directory(current_process, (u64)arg0, (const void *)arg1);
+	}
 
 	case syscall_numbers::close:
 		object_manager::get().free_object(current_process, arg0);

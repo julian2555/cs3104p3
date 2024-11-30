@@ -20,6 +20,31 @@ object *object::open(const char *path)
 	return new object(result.id);
 }
 
+int object::open_directory(const char *path)
+{
+	auto result = syscalls::open_directory(path);
+	if (result.code != syscall_result_code::ok) {
+		return -1;
+	}
+
+	return result.id;
+}
+
+int object::read_directory(u64 obj, const void *dir_data)
+{	
+	auto result = syscalls::read_directory(obj, dir_data);
+	if (result.code != syscall_result_code::ok) {
+		return -1;
+	}
+
+	return result.id;
+}
+
+int object::close(u64 obj){
+	auto result = syscalls::close(obj);
+	return (int)result;
+}
+
 object::~object() { syscalls::close(handle_); }
 
 size_t object::read(void *buffer, size_t length) { return syscalls::read(handle_, buffer, length).length; }

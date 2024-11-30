@@ -42,6 +42,18 @@ public:
 	virtual shared_ptr<file> open() = 0;
 	virtual fs_node *mkdir(const char *name) = 0;
 
+	// Functions for ls implementation
+	virtual fs_node *next_child() = 0;
+	virtual int children_count() = 0;
+	virtual u64 size() = 0;
+	virtual string get_name(){
+		return name_;
+	}
+	virtual fs_node_kind get_kind(){
+		return kind_;
+	}
+
+
 protected:
 	virtual fs_node *resolve_child(const string &name) { return nullptr; }
 

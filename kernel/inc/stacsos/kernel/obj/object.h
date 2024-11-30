@@ -10,6 +10,7 @@
 #include <stacsos/kernel/fs/file.h>
 #include <stacsos/kernel/sched/process.h>
 #include <stacsos/kernel/sched/thread.h>
+#include <stacsos/kernel/fs/directory.h>
 #include <stacsos/memory.h>
 
 namespace stacsos::kernel::obj {
@@ -45,6 +46,25 @@ protected:
 
 private:
 	u64 id_;
+};
+
+class directory_object : public object {
+public:
+	directory_object(u64 id, shared_ptr<fs::directory> dir)
+		: object(id)
+		, dir_(dir)
+	{
+	}
+
+	virtual operation_result pread(void *buffer, size_t offset, size_t length)
+	{
+		fs::fs_node **pointer = (fs::fs_node **)buffer;
+		*pointer = &dir_->get_node();
+		return operation_result::ok(0);
+	};
+
+private:
+	shared_ptr<fs::directory> dir_;
 };
 
 class file_object : public object {

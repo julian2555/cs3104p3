@@ -20,6 +20,10 @@ public:
 	size_t read(void *buffer, size_t length);
 	size_t pread(void *buffer, size_t length, size_t offset);
 
+	static int open_directory(const char *path);
+	static int read_directory(u64 obj, const void *directorydata);
+	static int close(u64 obj);
+
 	u64 ioctl(u64 cmd, void *buffer, size_t length);
 
 private:

@@ -58,11 +58,26 @@ public:
 		: fs_node(fs, parent, kind, name)
 		, data_start_(data_start)
 		, data_size_(data_size)
+		, this_child_(0)
 	{
 	}
 
 	virtual shared_ptr<file> open() override { return shared_ptr<file>(new tarfs_file((tar_filesystem &)fs(), data_start_, data_size_)); }
 	virtual fs_node *mkdir(const char *name) override;
+	
+	// Functions for ls implementation
+	virtual fs_node *next_child() override{
+		// If this_child_ is larger than children list then reset
+		if (this_child_ + 1 >= children_.count()){
+			this_child_ = 0;
+			return nullptr;
+		}
+
+		this_child_ += 1;
+		return children_.at(this_child_);
+	}
+	virtual int children_count() override { return children_.count(); }
+	virtual u64 size() override { return data_size_; }
 
 protected:
 	virtual fs_node *resolve_child(const string &name) override;
@@ -79,6 +94,7 @@ private:
 
 	list<tarfs_node *> children_;
 	u64 data_start_, data_size_;
+	int this_child_;
 };
 
 class tar_filesystem : public physical_filesystem {
